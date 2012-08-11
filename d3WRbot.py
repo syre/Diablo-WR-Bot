@@ -1,4 +1,4 @@
-# simple diablo 3 warriors rest pixel bot with a little GUI
+# simple diablo 3 warriors rest pixel bot with a little GUI in wxPython
 # only works in windowed mode with a resolution of 1064x758
 
 import win32api
