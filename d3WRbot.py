@@ -431,11 +431,13 @@ class DiabloBot(Observable):
 
 
 class WorkerThread(threading.Thread):
-    def __init__(self):
+    def __init__(self, function, *args):
         threading.Thread.__init__(self)
+        self.function = function
+        self.args = args
 
-    def run(self, function):
-        function()
+    def run(self):
+        self.function(*self.args)
 
     def stop(self):
         self._stop.set()
@@ -497,8 +499,8 @@ class BotGUI(wx.Frame, Observer):
 
     def startWorker(self, event):
         if not self.worker:
-            self.worker = WorkerThread()
-            self.worker.run(self.runGames)
+            self.worker = WorkerThread(self.runGames)
+            self.worker.start()
 
     def exit(self, event):
         self.Close(True)
