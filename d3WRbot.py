@@ -435,16 +435,16 @@ class WorkerThread(threading.Thread):
         threading.Thread.__init__(self)
         self.function = function
         self.args = args
+        self.stop_event = threading.Event()
 
     def run(self):
         self.function(*self.args)
 
     def stop(self):
-        self._stop.set()
+        self.stop_event.set()
 
-    def stopped(self):
-        return self._stop.isSet()
-
+    def stopEventSet(self):
+        return self.stop_event.isSet()
 
 class BotGUI(wx.Frame, Observer):
     def __init__(self, parent, id):
@@ -493,8 +493,7 @@ class BotGUI(wx.Frame, Observer):
             self.bot.runGame()
             self.bot.runcount = i + 1
             self.bot.notifyObservers("runcount")
-            if self.stopped():
-                print "thread stopping"
+            if self.worker.stopEventSet():
                 return
 
     def startWorker(self, event):
@@ -507,7 +506,6 @@ class BotGUI(wx.Frame, Observer):
 
     def stopWorker(self, event):
         self.worker.stop()
-        self.worker = None
 
     def closewindow(self, event):
         self.Destroy()
