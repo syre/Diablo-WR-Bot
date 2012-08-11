@@ -511,8 +511,12 @@ class BotGUI(wx.Frame, Observer):
     def closewindow(self, event):
         self.Destroy()
 
-if __name__ == '__main__':
+
+def main():
     app = wx.PySimpleApp()
     frame = BotGUI(parent=None, id=-1)
     frame.Show()
     app.MainLoop()
+
+if __name__ == '__main__':
+    main()
