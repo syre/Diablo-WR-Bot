@@ -494,10 +494,11 @@ class BotGUI(wx.Frame, Observer):
             self.bot.runcount = i + 1
             self.bot.notifyObservers("runcount")
             if self.worker.stopEventSet():
+                print "stopping worker"
                 return
 
     def startWorker(self, event):
-        if not self.worker:
+        if not self.worker or not self.worker.isAlive():
             self.worker = WorkerThread(self.runGames)
             self.worker.start()
 
