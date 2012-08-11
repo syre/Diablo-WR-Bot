@@ -497,7 +497,8 @@ class BotGUI(wx.Frame, Observer):
 
     def startWorker(self, event):
         if not self.worker:
-            worker = WorkerThread(runGames)
+            self.worker = WorkerThread()
+            self.worker.run(runGames)
 
     def exit(self, event):
         self.Close(True)
