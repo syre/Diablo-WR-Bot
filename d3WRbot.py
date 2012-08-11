@@ -431,21 +431,11 @@ class DiabloBot(Observable):
 
 
 class WorkerThread(threading.Thread):
-    def __init__(self, bot, numberofruns):
+    def __init__(self):
         threading.Thread.__init__(self)
-        self.numberofruns = numberofruns
-        self.bot = bot
-        self._stop = threading.Event()
-        self.start()
 
-    def run(self):
-        for i in range(self.numberofruns):
-            self.bot.runGame()
-            self.bot.runcount = i + 1
-            self.bot.notifyObservers("runcount")
-            if self.stopped():
-                print "thread stopping"
-                return
+    def run(self, function):
+        function()
 
     def stop(self):
         self._stop.set()
@@ -491,12 +481,24 @@ class BotGUI(wx.Frame, Observer):
                                     " - " +
                                     "current run: " + str(self.bot.runcount))
 
+    def runGames(self):
+        try:
+            numberofruns = int(self.runstextbox.GetValue())
+        except:
+            print "could not parse string to integer"
+            return
+        for i in range(numberofruns):
+            self.bot.runGame()
+            self.bot.runcount = i + 1
+            self.bot.notifyObservers("runcount")
+            if self.stopped():
+                print "thread stopping"
+                return
+
     def startWorker(self, event):
         if not self.worker:
-            try:
-                worker = WorkerThread(self.bot, int(self.runstextbox.GetValue()))
-            except:
-                print "could not parse string to integer"
+            worker = WorkerThread(runGames)
+
     def exit(self, event):
         self.Close(True)
 
