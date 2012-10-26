@@ -9,8 +9,8 @@ import ImageGrab
 import os
 import time
 import wx
+import wx.py
 import threading
-import sys
 
 # observer pattern
 class Observable(list):
@@ -40,6 +40,9 @@ class DiabloBot(Observable):
         self.rarecount = 0
         self.setcount = 0
         self.runcount = 0
+        self.pickupLegendary = False
+        self.pickupSet = False
+        self.pickupRare = False
 
     def refreshDiabloWindow(self):
         diablowindow = win32gui.FindWindow(None, "Diablo III")
@@ -67,19 +70,20 @@ class DiabloBot(Observable):
                   'last_tab_cord': (300, 500),
                   'tp_click': (500, 325),
                   'repairsymbol': (785, 45),
-                  'repair_tab': (347, 352),
+                  'repair_tab': (347, 272),
                   'repair_all': (214, 421),
                   'first_tab': (350, 180),
                   'second_tab': (350, 260),
                   'third_tab': (350, 350),
-                  'death_check': (447, 595)}
+                  'revive_button': (550,600)}
 
     gamecolors = {'inventory_empty_block': (19, 11, 5),
                   'rare_itemcolor': (255, 255, 0),
                   'legendary_itemcolor': (191, 100, 47),
                   'set_itemcolor': (0, 255, 0),
-                  'red_repaircolor': (222, 0, 0),
-                  'revive_textcolor': (218, 148, 74)}
+                  'red_repaircolor': (216, 0, 0)}
+
+    deathmarkers = [(342, 246), (543, 262), (780, 230)]
 
     def screenGrab(self):
         box = (self.x_2, self.y_2, self.x_1, self.y_1)
@@ -127,8 +131,13 @@ class DiabloBot(Observable):
         print x, y
 
     def buff(self):
+        self.shell.SendKeys("2")
         self.shell.SendKeys("3")
         self.shell.SendKeys("4")
+
+    def revive(self):
+        self.mousePos(self.gamecoords['revive_button'])
+        self.leftClick()
 
     def repair(self):
         print "repairing"
@@ -167,60 +176,36 @@ class DiabloBot(Observable):
         else:
             return False
 
-    def pickupRareItems(self):
-        if self.isDead():
-            return False
+    def pickupSpecialItems(self, type):
         image = self.screenGrab()
+        # y from 100 to 75% of max is the area where items are dropping
         for x in range(1, self.x_1 - self.x_2):
-            # y from 100 to 75% of max is the area where items are dropping
             for y in range(100, self.y_1 / 100 * 75):
-                if (image.getpixel((x, y)) == self.gamecolors['rare_itemcolor']):
+                if (image.getpixel((x, y)) == self.gamecolors[type + '_itemcolor']):
+                    if (type != 'rare'):
+                        self.screenGrabToFile(type)
+                    if (self.isDead() and (type != 'rare')):
+                        self.revive()
+                        self.runFromEntryPoint()
+                        for m in range(1, self.x_1 - self.x_2):
+                            for n in range(100, self.y_1 / 100 * 75):
+                                if (image.getpixel((m, n)) == self.gamecolors[type + '_itemcolor']):
+                                    x = m
+                                    y = n
+                    print type + " item found!"
+                    time.sleep(1.5)
                     self.mousePos((x, y))
                     self.leftClick()
-                    time.sleep(2.5)
-                    self.rarecount = self.rarecount + 1
-                    self.notifyObservers("rarecount")
-                    self.pickupRareItems()
-                    return True
-        return False
-
-    def pickupLegendaryItems(self):
-        image = self.screenGrab()
-        for x in range(1, self.x_1 - self.x_2):
-            # y from 100 to 75% of max is the area where items are dropping
-            for y in range(100, self.y_1 / 100 * 75):
-                if (image.getpixel((x, y)) == self.gamecolors['legendary_itemcolor']):
-                    print "legendary item found!"
-                    self.screenGrabToFile("legendary")
-                    time.sleep(2.5)
-                    if self.isDead():
-                        sys.exit(1)
-                    self.mousePos((x, y))
-                    self.leftClick()
-                    time.sleep(2.5)
-                    self.legendarycount = self.legendarycount + 1
-                    self.notifyObservers("legendarycount")
-                    self.pickupLegendaryItems()
-                    return True
-        return False
-
-    def pickupSetItems(self):
-        image = self.screenGrab()
-        for x in range(1, self.x_1 - self.x_2):
-            # y from 100 to 75% of max is the area where items are dropping
-            for y in range(100, self.y_1 / 100 * 75):
-                if (image.getpixel((x, y)) == self.gamecolors['set_itemcolor']):
-                    print "set item found!"
-                    self.screenGrabToFile("set")
-                    time.sleep(2.5)
-                    if self.isDead():
-                        sys.exit(1)
-                    self.mousePos((x, y))
-                    self.leftClick()
-                    time.sleep(2.5)
-                    self.setcount = self.setcount + 1
-                    self.notifyObservers("setcount")
-                    self.pickupSetItems()
+                    time.sleep(1.5)
+                    if type == 'legendary':
+                        self.legendarycount += 1
+                        self.pickupSpecialItems(type)
+                    elif type == 'set':
+                        self.setcount += 1
+                        self.pickupSpecialItems(type)
+                    elif type == 'rare':
+                        self.rarecount += 1
+                    self.notifyObservers(type + "count")
                     return True
         return False
 
@@ -239,7 +224,7 @@ class DiabloBot(Observable):
     def castBlizzard(self):
         self.rightClick()
 
-    def castHydra(self):
+    def castFamiliar(self):
         self.shell.SendKeys("2")
 
     def castDiamondSkin(self):
@@ -297,25 +282,28 @@ class DiabloBot(Observable):
 
     def isDead(self):
         image = self.screenGrab()
-        if (image.getpixel(self.gamecoords['death_check']) == self.gamecolors['revive_textcolor']):
-            return True
-        else:
-            return False
+        for mark in self.deathmarkers:
+            if (image.getpixel(mark) != (255, 255, 255)):
+                return False
+        return True
 
     def moveToNextTab(self):
         image = self.screenGrab()
-        if (image.getpixel(self.gamecoords['first_tab']) == (85, 48, 24)):
+        if (image.getpixel(self.gamecoords['first_tab']) == (67, 37, 16)):
             self.mousePos(self.gamecoords['second_tab'])
             time.sleep(0.5)
             self.leftClick()
-        elif (image.getpixel(self.gamecoords['second_tab']) == (113, 75, 48)):
+        elif (image.getpixel(self.gamecoords['second_tab']) == (96, 59, 32)):
             self.mousePos(self.gamecoords['third_tab'])
             time.sleep(0.5)
             self.leftClick()
-        elif (image.getpixel(self.gamecoords['third_tab']) == (74, 65, 55) and
+        elif (image.getpixel(self.gamecoords['third_tab']) == (42, 33, 30) and
             image.getpixel(self.gamecoords['last_inventoryspace_coord']) != self.gamecolors['inventory_empty_block']):
             print "no room left"
-            sys.exit(1)
+            self.sleepComputer()
+
+    def sleepComputer(self):
+        os.system(r'%windir%\system32\rundll32.exe powrprof.dll,SetSuspendState Hibernate')
 
     def resetCounters(self):
         self.legendarycount = 0
@@ -327,78 +315,45 @@ class DiabloBot(Observable):
     def enableItemText(self):
         self.shell.SendKeys("-")
 
-    def runArchonBuild(self):
-        # D-SKIN, HYDRA, MWEAPON, ENERGY ARMOR, MAGIC MISSILE, ARCHON - WITH BLUR, GALV. WARD, GLASS CANNON
+    def runFromEntryPoint(self):
+        self.buff()
         self.mousePos((630, 340))
         self.leftDown()
-        time.sleep(7.4)
+        time.sleep(6.4)
         self.leftUp()
-        # cast hydra to the right of self + archon
+
+    def runArchonBuild(self):
+        # archon on rightclick
+        self.runFromEntryPoint()
+        # cast hydra to the right of self
         self.mousePos(self.gamecoords['rightofself_click'])
-        self.castHydra()
         time.sleep(0.5)
         self.rightClick()
         time.sleep(0.5)
         self.castDiamondSkin()
         self.rightDown()
-        for i in range(1, 15):
+        for i in range(1, 25):
             self.mousePos((800, 280))
             time.sleep(0.5)
             self.mousePos((800, 350))
             time.sleep(0.5)
             self.mousePos((800, 480))
+            if (i == 8):
+                self.mousePos((150, 300))
+                time.sleep(0.1)
+                self.leftDown()
+                time.sleep(0.5)
+                self.leftUp()
+        self.leftDown()
         self.rightUp()
         self.castDiamondSkin()
-
-    def runBlizzBuild(self):
-        # D-SKIN, HYDRA, MWEAPON, ENERGY ARMOR, MAGIC MISSILE, BLIZZARD - WITH BLUR, GALV. WARD, GLASS CANNON
-         # run up to skeleton elite pack
-        self.mousePos((630, 340))
-        self.leftDown()
-        time.sleep(7)
-        self.leftUp()
-        # cast hydra + blizzard to the right of self
-        self.mousePos(self.gamecoords['rightofself_click'])
-        self.castHydra()
-        time.sleep(0.5)
-        self.castBlizzard()
-        self.castSeekerMissile()
-        # cast diamondskin
-        self.castDiamondSkin()
-        self.castSeekerMissile()
-        # move a bit left and recast blizzard + hydra on self
-        self.mousePos((360, 355))
-        self.leftClick()
-        time.sleep(1)
-        self.mousePos(self.gamecoords['targetleftofself_click'])
-        self.castHydra()
-        time.sleep(0.2)
-        self.castBlizzard()
-        self.castSeekerMissile()
-        self.castSeekerMissile()
-        # move a bit left and recast blizzard + hydra
-        self.mousePos((360, 355))
-        self.leftClick()
-        time.sleep(1)
-        self.mousePos(self.gamecoords['rightofself_click'])
-        self.castHydra()
-        self.mousePos(self.gamecoords['targetleftofself_click'])
-        time.sleep(0.2)
-        self.castBlizzard()
-        self.mousePos(self.gamecoords['rightofself_click'])
-        self.castSeekerMissile()
-        self.castSeekerMissile()
-        self.castSeekerMissile()
-        self.castDiamondSkin()
-        self.castBlizzard()
-        self.castSeekerMissile()
 
     def runGame(self):
         time.sleep(2)
         # refresh diablo window coordinates
         self.refreshDiabloWindow()
         self.resumeDiablo()
-        time.sleep(5)
+        time.sleep(5.5)
         if (self.isInventoryFull()):
             self.teleport()
             # move to chest
@@ -417,15 +372,17 @@ class DiabloBot(Observable):
             print "repairing"
             self.teleport()
             self.repair()
-        self.buff()
         # insert build
         self.runArchonBuild()
         self.mousePos(self.gamecoords['rightofself_click'])
         self.leftClick()
         time.sleep(2.6)
-        self.pickupRareItems()
-        self.pickupLegendaryItems()
-        self.pickupSetItems()
+        if (self.pickupLegendary):
+            self.pickupSpecialItems('legendary')
+        if (self.pickupSet):
+            self.pickupSpecialItems('set')
+        if (self.pickupRare):
+            self.pickupSpecialItems('rare')
         self.exitDiablo()
         time.sleep(10)
 
@@ -446,7 +403,7 @@ class WorkerThread(threading.Thread):
     def stopEventSet(self):
         return self.stop_event.isSet()
 
-class BotGUI(wx.Frame, Observer):
+class BotGUI(wx.Frame, Observer): 
     def __init__(self, parent, id):
         wx.Frame.__init__(self, parent, id, 'PandemoniumBot', size=(300, 200))
         Observer.__init__(self, 'BotGUI')
@@ -455,6 +412,9 @@ class BotGUI(wx.Frame, Observer):
         exitbutton = wx.Button(panel, label="Exit", pos=(10, 100), size=(60, 30))
         stopbutton = wx.Button(panel, label="Stop at end of run", pos=(90, 50), size=(140, 30))
         resetcounterbutton = wx.Button(panel, label="Reset", pos=(90, 100), size=(110, 30))
+        self.rarecheckbox = wx.CheckBox(panel, label="rare", pos=(210, 90))
+        self.legendarycheckbox = wx.CheckBox(panel, label="legendary", pos=(210, 110))
+        self.setcheckbox = wx.CheckBox(panel, label="set", pos=(210, 130))
         runslabel = wx.StaticText(panel, -1, label="Number of runs:", pos=(10, 10))
         self.runstextbox = wx.TextCtrl(panel, -1, "", pos=(100, 5), size=(60, -1))
         self.statusbar = self.CreateStatusBar()
@@ -489,6 +449,21 @@ class BotGUI(wx.Frame, Observer):
         except:
             print "could not parse string to integer"
             return
+        if self.rarecheckbox.IsChecked():
+            self.bot.pickupRare = True
+        else:
+            self.bot.pickupRare = False
+
+        if self.legendarycheckbox.IsChecked():
+            self.bot.pickupLegendary = True
+        else:
+            self.bot.pickupLegendary = False
+
+        if self.setcheckbox.IsChecked():
+            self.bot.pickupSet = True
+        else:
+            self.bot.pickupSet = False
+
         for i in range(numberofruns):
             self.bot.runGame()
             self.bot.runcount = i + 1
