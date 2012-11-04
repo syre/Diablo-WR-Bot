@@ -63,7 +63,7 @@ class DiabloBot(Observable):
                   'leavegame_click': (533, 406),
                   'resumegame_click': (160, 300),
                   'targetself_click': (530, 315),
-                  'rightofself_click': (800, 350),
+                  'rightofself_click': (650, 315),
                   'last_inventoryspace_coord': (975, 550),
                   'targetleftofself_click': (560, 315),
                   'chest_click': (595, 200),
@@ -224,13 +224,13 @@ class DiabloBot(Observable):
     def castBlizzard(self):
         self.rightClick()
 
-    def castFamiliar(self):
+    def castFrostNova(self):
         self.shell.SendKeys("2")
 
     def castDiamondSkin(self):
         self.shell.SendKeys("1")
 
-    def castSeekerMissile(self):
+    def castWhirlwind(self):
         win32api.keybd_event(win32con.VK_LSHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY | 0, 0)
         self.leftDown()
         time.sleep(2.5)
@@ -315,11 +315,11 @@ class DiabloBot(Observable):
     def enableItemText(self):
         self.shell.SendKeys("-")
 
-    def runFromEntryPoint(self):
+    def runFromEntryPoint(self, sleepduration=6.4):
         self.buff()
-        self.mousePos((630, 340))
+        self.mousePos((630, 350))
         self.leftDown()
-        time.sleep(6.4)
+        time.sleep(sleepduration)
         self.leftUp()
 
     def runArchonBuild(self):
@@ -344,9 +344,27 @@ class DiabloBot(Observable):
                 self.leftDown()
                 time.sleep(0.5)
                 self.leftUp()
+            self.shell.SendKeys("1")
         self.leftDown()
         self.rightUp()
         self.castDiamondSkin()
+
+    def castExplosion(self):
+        self.rightClick()
+
+    def runCMBuild(self):
+        # critical mass / whirlwind: diamond skin, frost nova, teleport, energy armor, whirlwind, explosion
+        self.runFromEntryPoint(6.8)
+        self.mousePos(self.gamecoords['rightofself_click'])
+        time.sleep(0.25)
+        for i in range (1, 15):
+            time.sleep(0.4)
+            self.castWhirlwind()
+            if (i > 2):
+                self.castFrostNova()
+                self.castDiamondSkin()
+                self.castExplosion()
+
 
     def runGame(self):
         time.sleep(2)
@@ -382,6 +400,8 @@ class DiabloBot(Observable):
         if (self.pickupSet):
             self.pickupSpecialItems('set')
         if (self.pickupRare):
+            self.pickupSpecialItems('rare')
+            self.pickupSpecialItems('rare')
             self.pickupSpecialItems('rare')
         self.exitDiablo()
         time.sleep(10)
